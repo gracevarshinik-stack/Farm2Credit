@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Farm2Credit — Demo (HTML + JS)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --green:#2f855a; --light:#e6fff0; --muted:#6b7280;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    body{margin:0;background:linear-gradient(180deg,#f6fffa,#ffffff);color:#0f172a}
+    header{background:#fff;border-bottom:1px solid #ecfdf3;padding:18px 24px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:8px;background:var(--green);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    h1{margin:0;font-size:20px}
+    main{max-width:980px;margin:28px auto;padding:0 20px}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    @media(min-width:880px){.grid{grid-template-columns:1fr 420px}}
+    .card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(15,23,42,0.06);border:1px solid #eefcf2}
+    .hero{padding:28px 18px}
+    .muted{color:var(--muted)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    input[type="number"],select,input[type="text"]{padding:8px 10px;border-radius:8px;border:1px solid #e6eef0;min-width:140px}
+    button{background:var(--green);color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer}
+    button.secondary{background:#fff;color:var(--green);border:1px solid #dbeede}
+    ul{padding-left:18px;margin:8px 0}
+    .list-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #f1f5f9}
+    .small{font-size:13px;color:var(--muted)}
+    .stat{display:flex;gap:12px;align-items:center}
+    .pill{background:#f0fff5;padding:6px 10px;border-radius:999px;color:var(--green);font-weight:600}
+    .tx{font-family:monospace;background:#f8fff9;padding:8px;border-radius:8px;margin-top:8px}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">F2C</div>
+    <div>
+      <h1>Farm2Credit — Demo</h1>
+      <div class="small muted">Prototype: estimate & mint carbon credits for smallholders</div>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="pill" id="total-credits">0 tCO₂e</div>
+    <button id="resetBtn" class="secondary">Reset Demo</button>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- Left column: interactive -->
+    <div>
+      <section class="card hero">
+        <h2 style="margin:0 0 6px 0">Estimate Carbon Credits</h2>
+        <div class="small muted">Quick demo estimator for agroforestry + rice AWD effects</div>
+
+        <div style="margin-top:14px">
+          <label class="small">Select farmer</label><br/>
+          <select id="farmerSelect"></select>
+        </div>
+
+        <div style="margin-top:10px">
+          <label class="small">Area to register (hectares)</label><br/>
+          <input id="areaInput" type="number" value="1" min="0.01" step="0.1" />
+        </div>
+
+        <div style="margin-top:10px">
+          <label class="small">Percent AWD adoption in rice (%)</label><br/>
+          <input id="awdInput" type="number" value="0" min="0" max="100" />
+        </div>
+
+        <div class="controls" style="margin-top:14px">
+          <button id="estimateBtn">Estimate</button>
+          <button id="mintBtn" class="secondary">Mint (simulate)</button>
+          <button id="addFarmerBtn" class="secondary">Add Farmer</button>
+        </div>
+
+        <div id="resultArea" style="margin-top:14px"></div>
+      </section>
+
+      <section class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 6px 0">Minted Credits (Demo)</h3>
+        <div class="small muted">Simulated minted transactions for this session</div>
+        <div id="txList" style="margin-top:10px"></div>
+      </section>
+    </div>
+
+    <!-- Right column: info -->
+    <aside>
+      <div class="card">
+        <h3 style="margin:0 0 6px 0">Farmers</h3>
+        <div class="small muted">Sample smallholders in demo</div>
+        <div id="farmersList" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h3 style="margin:0 0 6px 0">Estimator logic</h3>
+        <div class="small muted" style="line-height:1.6">
+          • Agroforestry sequestration ≈ <strong>6 tCO₂e/ha/year</strong> <br/>
+          • Rice AWD baseline ≈ <strong>1.2 tCO₂e/ha</strong>, up to <strong>30%</strong> reduction via AWD <br/>
+          • Total = agro + (rice baseline × AWD factor). Price used for demo: <strong>$12/ton</strong>.
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+/*
+  Farm2Credit demo - single-file HTML + JS
+  - No external files or JSON.
+  - In-memory arrays used to simulate farmers and minted credits.
+*/
+
+// Demo farmer dataset (plain JS objects, not JSON file)
+const farmers = [
+  { id: "F001", name: "Ravi Kumar", area_ha: 1.2, village: "Village A" },
+  { id: "F002", name: "Sita Devi", area_ha: 0.9, village: "Village B" },
+  { id: "F003", name: "Ali Khan", area_ha: 2.0, village: "Village C" }
+];
+
+// In-memory minted transactions
+let minted = [];
+
+// DOM refs
+const farmerSelect = document.getElementById("farmerSelect");
+const areaInput = document.getElementById("areaInput");
+const awdInput = document.getElementById("awdInput");
+const estimateBtn = document.getElementById("estimateBtn");
+const mintBtn = document.getElementById("mintBtn");
+const addFarmerBtn = document.getElementById("addFarmerBtn");
+const resultArea = document.getElementById("resultArea");
+const farmersList = document.getElementById("farmersList");
+const txList = document.getElementById("txList");
+const totalCreditsPill = document.getElementById("total-credits");
+const resetBtn = document.getElementById("resetBtn");
+
+// Initialize UI
+function init() {
+  renderFarmerOptions();
+  renderFarmersList();
+  renderTransactions();
+  updateTotalCredits();
+}
+init();
+
+// Render farmer dropdown
+function renderFarmerOptions(){
+  farmerSelect.innerHTML = "";
+  farmers.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f.id;
+    opt.textContent = `${f.name} — ${f.area_ha} ha (${f.village})`;
+    farmerSelect.appendChild(opt);
+  });
+}
+
+// Render farmers list card
+function renderFarmersList(){
+  farmersList.innerHTML = "";
+  farmers.forEach(f => {
+    const div = document.createElement("div");
+    div.className = "list-row";
+    div.innerHTML = `<div><strong>${f.name}</strong><div class="small muted">${f.village}</div></div><div class="small">${f.area_ha} ha</div>`;
+    farmersList.appendChild(div);
+  });
+}
+
+// Estimation logic (demo)
+function estimateCredits(areaHa, awdPercent){
+  const agroSequestrationPerHa = 6;           // tCO2e / ha / year
+  const riceBaselinePerHa = 1.2;              // baseline tCO2e/ha
+  const awdReductionFactor = (awdPercent / 100) * 0.30; // up to 30%
+
+  const agroCredits = areaHa * agroSequestrationPerHa;
+  const riceCredits = areaHa * riceBaselinePerHa * awdReductionFactor;
+  const totalCO2e = +(agroCredits + riceCredits).toFixed(2);
+  const estPayoutUSD = +(totalCO2e * 12).toFixed(2); // demo price $12/ton
+
+  return { totalCO2e, estPayoutUSD, parts: { agroCredits: +agroCredits.toFixed(2), riceCredits: +riceCredits.toFixed(2) } };
+}
+
+// Event: Estimate
+estimateBtn.addEventListener("click", () => {
+  const farmerId = farmerSelect.value;
+  const area = parseFloat(areaInput.value) || 0;
+  const awd = parseFloat(awdInput.value) || 0;
+  if(!farmerId || area <= 0){ alert("Choose a farmer and valid area (>0)."); return; }
+  const res = estimateCredits(area, awd);
+  showEstimate(res);
+});
+
+// Show estimate in UI
+function showEstimate(res){
+  resultArea.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:18px">${res.totalCO2e} tCO₂e</div>
+        <div class="small muted">Estimated sequestered / reduced this period</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;color:var(--green);">$${res.estPayoutUSD}</div>
+        <div class="small muted">Estimated payout</div>
+      </div>
+    </div>
+    <div class="small muted" style="margin-top:8px">Breakdown: Agro ${res.parts.agroCredits} t • Rice AWD ${res.parts.riceCredits} t</div>
+  `;
+}
+
+// Event: Mint (simulate)
+mintBtn.addEventListener("click", () => {
+  const farmerId = farmerSelect.value;
+  const area = parseFloat(areaInput.value) || 0;
+  const awd = parseFloat(awdInput.value) || 0;
+  if(!farmerId || area <= 0){ alert("Choose a farmer and valid area (>0)."); return; }
+  const res = estimateCredits(area, awd);
+
+  // Create simulated transaction
+  const tx = {
+    id: `TX${Date.now().toString().slice(-6)}`,
+    farmerId,
+    farmerName: farmers.find(f => f.id === farmerId).name,
+    credits: res.totalCO2e,
+    payoutUSD: res.estPayoutUSD,
+    mintedAt: new Date().toLocaleString()
+  };
+  minted.unshift(tx); // add to top
+  renderTransactions();
+  updateTotalCredits();
+  // Show success
+  resultArea.innerHTML += `<div class="tx">Minted: ${tx.id} — ${tx.credits} tCO₂e • $${tx.payoutUSD}</div>`;
+});
+
+// Add farmer (simple prompt)
+addFarmerBtn.addEventListener("click", () => {
+  const name = prompt("Enter farmer name (e.g., 'Lakshmi Devi'):");
+  if(!name) return;
+  const area = parseFloat(prompt("Area (ha)?", "1")) || 1;
+  const village = prompt("Village name?", "Village X") || "Village X";
+  const id = "F" + Math.floor(100 + Math.random()*900);
+  farmers.push({ id, name, area_ha: area, village });
+  renderFarmerOptions();
+  renderFarmersList();
+  alert("Farmer added: " + name);
+});
+
+// Render transactions list
+function renderTransactions(){
+  txList.innerHTML = "";
+  if(minted.length === 0){ txList.innerHTML = "<div class='small muted'>No minted credits yet.</div>"; return; }
+  minted.forEach(t => {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.style.marginBottom = "10px";
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:700">${t.farmerName}</div>
+        <div class="small muted">${t.mintedAt}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">${t.credits} tCO₂e</div>
+        <div class="small muted">$${t.payoutUSD}</div>
+      </div>
+    </div>
+    <div class="small muted" style="margin-top:8px">TxID: <span style="font-family:monospace">${t.id}</span></div>`;
+    txList.appendChild(d);
+  });
+}
+
+// Update total credits pill
+function updateTotalCredits(){
+  const total = minted.reduce((s, t) => s + Number(t.credits || 0), 0);
+  totalCreditsPill.textContent = `${total.toFixed(2)} tCO₂e`;
+}
+
+// Reset demo state
+resetBtn.addEventListener("click", () => {
+  if(!confirm("Clear minted transactions and reset demo?")) return;
+  minted = [];
+  renderTransactions();
+  updateTotalCredits();
+  resultArea.innerHTML = "";
+});
+
+// initial render
+renderTransactions();
+updateTotalCredits();
+</script>
+
+</body>
+</html>
